@@ -1,5 +1,7 @@
 import regex as re
+import os
 from collections import defaultdict
+from cs336_basics.pretokenization_example import find_chunk_boundaries
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
@@ -41,6 +43,8 @@ def remove_word_pairs(word_id, tup, count, pair_counts, pair_to_word_ids):
     """
     Remove all adjacent-pair contributions from one pre-token tuple.
     """
+    seen_pairs = set()
+
     for i in range(len(tup) - 1):
         pair = (tup[i], tup[i + 1])
 
@@ -48,9 +52,12 @@ def remove_word_pairs(word_id, tup, count, pair_counts, pair_to_word_ids):
         if pair_counts[pair] == 0:
             del pair_counts[pair]
 
-        pair_to_word_ids[pair].discard(word_id)
-        if not pair_to_word_ids[pair]:
-            del pair_to_word_ids[pair]
+        # Only update pair_to_word_ids once per distinct pair in this word.
+        if pair not in seen_pairs:
+            pair_to_word_ids[pair].discard(word_id)
+            if not pair_to_word_ids[pair]:
+                del pair_to_word_ids[pair]
+            seen_pairs.add(pair)
 
 
 def contains_pair(tup, pair):
@@ -89,30 +96,41 @@ def train_bpe(
     # -------------------------
     # 2. Read input file
     # -------------------------
-    with open(input_path, "r", encoding="utf-8") as file:
-        content = file.read()
-
-    # -------------------------
-    # 3. Split by special tokens
-    # -------------------------
-    if special_tokens:
-        split_pat = "|".join(re.escape(tok) for tok in special_tokens)
-        parts = re.split(split_pat, content)
-    else:
-        parts = [content]
-
-    # -------------------------
-    # 4. Pre-tokenize
-    # -------------------------
     pretokens_count = defaultdict(int)
 
-    for part in parts:
-        for match in re.finditer(PAT, part):
-            string_tok = match.group(0)
-            byte_seq = string_tok.encode("utf-8")
-            token_tuple = tuple(bytes([b]) for b in byte_seq)
-            pretokens_count[token_tuple] += 1
+    with open(input_path, "rb") as f:
+        if special_tokens:
+            # For TinyStories this is usually b"<|endoftext|>"
+            split_special_token = special_tokens[0].encode("utf-8")
+            boundaries = find_chunk_boundaries(
+                f,
+                desired_num_chunks=4,
+                split_special_token=split_special_token,
+            )
+        else:
+            f.seek(0, os.SEEK_END)
+            file_size = f.tell()
+            boundaries = [0, file_size]
 
+        split_pat = None
+        if special_tokens:
+            split_pat = "|".join(re.escape(tok) for tok in special_tokens)
+
+        for start, end in zip(boundaries[:-1], boundaries[1:]):
+            f.seek(start)
+            chunk = f.read(end - start).decode("utf-8", errors="ignore")
+
+            if split_pat is not None:
+                parts = re.split(split_pat, chunk)
+            else:
+                parts = [chunk]
+
+            for part in parts:
+                for match in re.finditer(PAT, part):
+                    string_tok = match.group(0)
+                    byte_seq = string_tok.encode("utf-8")
+                    token_tuple = tuple(bytes([b]) for b in byte_seq)
+                    pretokens_count[token_tuple] += 1
     # Instead of repeatedly storing a dict from tuple -> count,
     # give each distinct pre-token an integer ID.
     word_tokens = list(pretokens_count.keys())
