@@ -40,14 +40,10 @@ class Tokenizer:
                     self.bytes_to_id[tok_bytes] = next_id
                     next_id += 1
             
-
-
-        # TODO:
         # It is often useful to sort special tokens by length descending
         # before constructing a regex pattern for splitting.
         self.special_tokens_sorted = sorted(self.special_tokens, key=len, reverse=True)
-
-        # TODO:
+       
         # Optionally construct a compiled regex pattern that matches any special token.
         # Remember to use re.escape on each special token.
         self.special_pat = None
@@ -120,7 +116,6 @@ class Tokenizer:
         """
         ids: list[int] = []
 
-        # TODO:
         # Use re.finditer(PAT, text)
         # For each regex pre-token, call self._encode_pretoken(...)
         # and extend ids.
@@ -168,7 +163,6 @@ class Tokenizer:
         """
         Decode a sequence of token IDs into text.
         """
-        # TODO:
         # Look up each token ID in self.vocab.
         # Concatenate the bytes.
         # Decode using UTF-8 with errors="replace".

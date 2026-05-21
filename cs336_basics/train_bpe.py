@@ -77,9 +77,8 @@ def train_bpe(
     **kwargs,
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
 
-    # -------------------------
-    # 1. Initialize vocabulary
-    # -------------------------
+  
+    # Initialize vocabulary
     vocab = {}
     new_id = 0
 
@@ -93,9 +92,8 @@ def train_bpe(
 
     merges = []
 
-    # -------------------------
-    # 2. Read input file
-    # -------------------------
+    
+    # Read input file
     pretokens_count = defaultdict(int)
 
     with open(input_path, "rb") as f:
@@ -136,9 +134,6 @@ def train_bpe(
     word_tokens = list(pretokens_count.keys())
     word_counts = list(pretokens_count.values())
 
-    # -------------------------
-    # 5. Build initial pair cache
-    # -------------------------
     pair_counts = defaultdict(int)
     pair_to_word_ids = defaultdict(set)
 
@@ -146,9 +141,8 @@ def train_bpe(
         count = word_counts[word_id]
         add_word_pairs(word_id, tup, count, pair_counts, pair_to_word_ids)
 
-    # -------------------------
-    # 6. Merge loop
-    # -------------------------
+    
+    # Merge loop
     while len(vocab) < vocab_size:
         if not pair_counts:
             break
